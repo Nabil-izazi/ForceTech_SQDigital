@@ -1,0 +1,219 @@
+// ============================================================================
+// PROYEK: SISTEM INFORMASI MANAJEMEN SDM YAYASAN SABILAL QUR'AN
+// TIM: FORCETECH (Sistem Basis Data - UAD)
+// SPESIFIKASI SKEMA BASIS DATA (18 ENTITAS) - VERSI REVISI BRD V1.3
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// MODUL MASTER DATA: UNIT & KARYAWAN
+// ----------------------------------------------------------------------------
+
+Table Unit {
+  id_unit int [pk, increment, note: 'PK: Identitas unik unit lembaga']
+  nama_unit varchar(100) [not null, note: 'TPA, TKIT, atau Tilawati']
+  alamat text
+  no_telepon varchar(20)
+}
+
+Table Karyawan {
+  id_karyawan int [pk, increment, note: 'PK: Identitas unik karyawan']
+  nama_karyawan varchar(100) [not null]
+  tanggal_lahir date [not null]
+  jenis_kelamin varchar(20) [not null]
+  alamat text
+  no_telepon varchar(20)
+  email varchar(100) [unique]
+  tanggal_masuk date [not null]
+  status_karyawan varchar(20) [not null, note: 'Aktif, Probation, Resign, dll']
+}
+
+Table Penempatan_Karyawan {
+  id_penempatan int [pk, increment]
+  id_karyawan int [not null, ref: > Karyawan.id_karyawan]
+  id_unit int [not null, ref: > Unit.id_unit]
+  jabatan varchar(50) [not null]
+  tanggal_mulai date [not null]
+  tanggal_selesai date [null]
+  status_penempatan varchar(20) [not null, note: 'Aktif, Selesai']
+}
+
+// ----------------------------------------------------------------------------
+// MODUL AKADEMIK & PEMBELAJARAN (BUKTI KINERJA PENGAJAR)
+// ----------------------------------------------------------------------------
+
+Table Kelas {
+  id_kelas int [pk, increment]
+  id_unit int [not null, ref: > Unit.id_unit]
+  nama_kelas varchar(100) [not null]
+  tingkat varchar(50)
+  status_kelas varchar(20) [not null, note: 'Aktif, Non-Aktif']
+}
+
+Table Peserta_Didik {
+  id_peserta int [pk, increment]
+  id_kelas int [not null, ref: > Kelas.id_kelas, note: 'Penyesuaian RULE-01: Terdaftar di kelas & unit']
+  nama_peserta varchar(100) [not null]
+  tanggal_lahir date
+  jenis_kelamin varchar(20)
+  nama_wali varchar(100)
+  no_telepon_wali varchar(20)
+  status_peserta varchar(20) [not null, note: 'Aktif, Lulus, Keluar']
+}
+
+Table Sesi_Pembelajaran {
+  id_sesi int [pk, increment]
+  id_kelas int [not null, ref: > Kelas.id_kelas]
+  id_karyawan int [not null, ref: > Karyawan.id_karyawan, note: 'Pengajar yang bertugas di sesi tsb']
+  tanggal_sesi date [not null]
+  waktu_mulai time [not null]
+  waktu_selesai time [not null]
+  materi varchar(150)
+}
+
+Table Presensi_Peserta_Didik {
+  id_presensi_peserta int [pk, increment]
+  id_sesi int [not null, ref: > Sesi_Pembelajaran.id_sesi]
+  id_peserta int [not null, ref: > Peserta_Didik.id_peserta]
+  status_kehadiran varchar(20) [not null, note: 'Hadir, Izin, Sakit, Alpa']
+  keterangan varchar(255)
+
+  indexes {
+    (id_sesi, id_peserta) [unique, note: 'Mencegah input presensi ganda di satu sesi']
+  }
+}
+
+Table Capaian_Pembelajaran {
+  id_capaian_belajar int [pk, increment]
+  id_sesi int [not null, ref: > Sesi_Pembelajaran.id_sesi]
+  id_peserta int [not null, ref: > Peserta_Didik.id_peserta]
+  materi_capaian varchar(150) [not null]
+  nilai decimal(5,2)
+  catatan text
+}
+
+// ----------------------------------------------------------------------------
+// MODUL MANAJEMEN KINERJA PENGAJAR (EVALUASI TERPADU & KPI)
+// ----------------------------------------------------------------------------
+
+Table Periode_Penilaian {
+  id_periode int [pk, increment]
+  nama_periode varchar(100) [not null]
+  tanggal_mulai date [not null]
+  tanggal_selesai date [not null]
+  pertanyaan_evaluasi text
+  status_periode varchar(20) [not null, note: 'Aktif, Tutup']
+}
+
+Table Capaian_KPI {
+  id_capaian_kpi int [pk, increment]
+  id_karyawan int [not null, ref: > Karyawan.id_karyawan]
+  id_periode int [not null, ref: > Periode_Penilaian.id_periode]
+  nama_kpi varchar(100) [not null]
+  target decimal(10,2) [not null]
+  realisasi decimal(10,2) [not null]
+  bukti text
+  status_verifikasi varchar(20) [not null, note: 'SUBMITTED, APPROVED, REJECTED']
+}
+
+Table Evaluasi_Terpadu {
+  id_evaluasi int [pk, increment]
+  id_karyawan int [not null, ref: > Karyawan.id_karyawan, note: 'Pengajar yang dinilai']
+  id_periode int [not null, ref: > Periode_Penilaian.id_periode]
+  id_penilai_karyawan int [null, ref: > Karyawan.id_karyawan, note: 'Terisi jika penilai adalah atasan/peer guru']
+  id_peserta int [null, ref: > Peserta_Didik.id_peserta, note: 'Terisi jika penilai adalah wali dari santri tsb']
+  tanggal_evaluasi date [not null]
+  jenis_penilai varchar(30) [not null, note: 'WALI, PEER, ATASAN']
+  catatan text
+}
+
+Table Detail_Evaluasi {
+  id_detail_evaluasi int [pk, increment]
+  id_evaluasi int [not null, ref: > Evaluasi_Terpadu.id_evaluasi]
+  pertanyaan text [not null]
+  jawaban text
+  skor decimal(5,2) [not null]
+}
+
+// ----------------------------------------------------------------------------
+// MODUL REKRUTMEN
+// ----------------------------------------------------------------------------
+
+Table Lowongan {
+  id_lowongan int [pk, increment]
+  id_unit int [not null, ref: > Unit.id_unit]
+  jabatan varchar(100) [not null]
+  deskripsi text
+  tanggal_buka date [not null]
+  tanggal_tutup date [not null]
+  status_lowongan varchar(20) [not null, note: 'Buka, Tutup']
+}
+
+Table Lamaran {
+  id_lamaran int [pk, increment]
+  id_lowongan int [not null, ref: > Lowongan.id_lowongan]
+  nama_pelamar varchar(100) [not null]
+  email varchar(100) [not null]
+  no_telepon varchar(20)
+  tanggal_lamaran timestamp [not null]
+  cv_url varchar(255) [not null]
+  status_lamaran varchar(20) [not null, note: 'MASUK, LOLOS_BERKAS, DITOLAK, DITERIMA']
+}
+
+Table Hasil_Wawancara {
+  id_wawancara int [pk, increment]
+  id_lamaran int [not null, ref: > Lamaran.id_lamaran]
+  id_pewawancara int [not null, ref: > Karyawan.id_karyawan]
+  tanggal_wawancara timestamp [not null]
+  skor decimal(5,2)
+  catatan text
+  rekomendasi varchar(30) [not null, note: 'DIREKOMENDASIKAN, DIPERTIMBANGKAN, DITOLAK']
+}
+
+// ----------------------------------------------------------------------------
+// MODUL PRESENSI, CUTI, & PENGGAJIAN KARYAWAN
+// ----------------------------------------------------------------------------
+
+Table Presensi_Karyawan {
+  id_presensi int [pk, increment]
+  id_karyawan int [not null, ref: > Karyawan.id_karyawan]
+  id_unit int [not null, ref: > Unit.id_unit, note: 'Penyesuaian RULE-18: Mencatat presensi per unit']
+  tanggal date [not null]
+  waktu_masuk timestamp
+  waktu_pulang timestamp
+  status_kehadiran varchar(20) [not null, note: 'Hadir, Terlambat, Izin, Alpa']
+  keterangan varchar(255)
+
+  indexes {
+    (id_karyawan, id_unit, tanggal) [unique, note: 'Satu presensi per karyawan per unit per hari']
+  }
+}
+
+Table Cuti {
+  id_cuti int [pk, increment]
+  id_karyawan int [not null, ref: > Karyawan.id_karyawan, note: 'Pemohon cuti']
+  jenis_cuti varchar(50) [not null, note: 'Tahunan, Sakit, Melahirkan, Cuti Khusus']
+  tanggal_mulai date [not null]
+  tanggal_selesai date [not null]
+  alasan text
+  tanggal_pengajuan timestamp [not null]
+  status_cuti varchar(20) [not null, note: 'PENDING, APPROVED, REJECTED']
+  id_penyetuju int [null, ref: > Karyawan.id_karyawan, note: 'Kepala Unit yang menyetujui']
+}
+
+Table Gaji {
+  id_gaji int [pk, increment]
+  id_karyawan int [not null, ref: > Karyawan.id_karyawan]
+  bulan_gaji date [not null, note: 'Tanggal 1 pada bulan penggajian']
+  gaji_pokok decimal(12,2) [not null]
+  total_tunjangan decimal(12,2) [not null, default: 0]
+  total_potongan decimal(12,2) [not null, default: 0]
+  jumlah_hadir int [default: 0, note: 'Atribut turunan dari Presensi_Karyawan']
+  jumlah_cuti int [default: 0, note: 'Atribut turunan dari Cuti']
+  total_gaji decimal(12,2) [not null, note: 'Atribut turunan: pokok + tunjangan - potongan']
+  status_gaji varchar(20) [not null, note: 'DRAFT, FINAL, DIBAYAR']
+  tanggal_finalisasi timestamp [null]
+
+  indexes {
+    (id_karyawan, bulan_gaji) [unique, note: 'Satu slip gaji per karyawan per bulan']
+  }
+}
